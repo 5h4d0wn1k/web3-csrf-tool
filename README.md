@@ -22,32 +22,40 @@ This project implements a comprehensive CSRF testing tool that:
 ## Installation
 
 ```bash
+# No third-party dependencies required - Python standard library only.
+# The optional `requests` package transparently upgrades the HTTP stack:
 pip install requests
 ```
 
 ## Usage
 
 ```bash
-# Full analysis (analyze + forms + replay + generate)
-python3 csrf_tool.py -u "http://target.com/form"
+# Offline demo: full engine against the built-in vulnerable simulator (exit 0)
+python3 csrf_tool.py --demo
+
+# Offline demo: clean control simulator (must also exit 0, no findings)
+python3 csrf_tool.py --demo --clean
+
+# CSRF protection assessment (default action)
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form"
 
 # Token analysis only
-python3 csrf_tool.py -u "http://target.com/form" --action analyze
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action analyze
 
 # Form extraction only
-python3 csrf_tool.py -u "http://target.com/form" --action forms
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action forms
 
 # Replay form with custom data
-python3 csrf_tool.py -u "http://target.com/form" --action replay --data "email=test@test.com"
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action replay --data "email=admin@example.com"
 
 # Generate PoC payloads
-python3 csrf_tool.py -u "http://target.com/form" --action generate -o output/
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action generate -o output/
 
 # Generate bypass payloads
-python3 csrf_tool.py -u "http://target.com/form" --action bypass
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action bypass
 
-# Full scan with verbose output
-python3 csrf_tool.py -u "http://target.com/form" --action all -v
+# Full assessment with verbose output
+python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action all -v
 ```
 
 ## CLI Options
@@ -60,10 +68,12 @@ python3 csrf_tool.py -u "http://target.com/form" --action all -v
 | `-c, --cookies` | Cookies (key=value;key2=value2) |
 | `--header` | Custom header (repeatable) |
 | `--timeout` | Request timeout in seconds |
-| `--action` | Action: analyze, forms, replay, generate, bypass, all |
+| `--action` | Action: analyze, forms, assess, replay, generate, bypass, all |
 | `--replay-count` | Number of times to replay form |
 | `-o, --output-dir` | Output directory for generated payloads |
 | `-v, --verbose` | Verbose output |
+| `--demo` | Run offline demo against the built-in simulator |
+| `--clean` | With `--demo`: use the clean control simulator |
 
 ## Example Output
 
@@ -141,6 +151,45 @@ If you discover vulnerabilities using this tool, follow responsible disclosure p
 1. Report to the vendor/owner privately
 2. Allow reasonable time for remediation
 3. Do not exploit beyond proof of concept
+
+## Running the Demo and Tests
+
+The tool ships with two built-in simulators (stdlib `http.server`):
+
+- **Vulnerable** — a bank-transfer form whose POST handler **never validates the CSRF
+  token**; a token-less replay is accepted with HTTP 200.
+- **Clean** — the same form but the handler **rejects** any submission without a valid
+  token (HTTP 403).
+
+`--demo` runs the full detection engine (`extract_forms` → token analysis →
+`assess_csrf_protection` → PoC generation) against these simulators over loopback,
+using the exact same code path as a live target.
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+## Live Lab Test Plan
+
+Test only against targets in your own lab (e.g. a deliberately vulnerable app running
+on 127.0.0.1 or 192.0.2.x RFC-5737 space):
+
+1. Deploy a lab app with a POST form that lacks CSRF protection.
+2. Confirm baseline: `python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action forms -v`
+3. Run assessment: `python3 csrf_tool.py -u "http://127.0.0.1:<port>/form" --action assess`
+   and confirm the form is flagged as unprotected.
+4. Repeat against the same app with server-side token validation and confirm it is
+   reported as protected.
+5. Document target, form action, token evidence, and replay status codes in your
+   lab report.
+
+## Metrics
+
+- **Video metric**: 60-second screencast of `python3 csrf_tool.py --demo` reporting
+  the unprotected form, plus `python3 -m unittest discover -s tests -v`, recorded on
+  the lab-only loopback target.
+- **Pass rate**: all unit tests green; demo exit 0 on both vulnerable and clean
+  simulators.
 
 ## License
 

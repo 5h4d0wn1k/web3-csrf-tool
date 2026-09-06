@@ -1,0 +1,2 @@
+# Optional: requests (HTTP stack upgrade only; stdlib urllib is the default transport)
+requests>=2.0
