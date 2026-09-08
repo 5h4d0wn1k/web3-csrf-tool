@@ -682,7 +682,7 @@ def run_simulator(server_class):
 class TransferApp:
     """Backing state for the demo apps: one random token, small amount of state."""
     def __init__(self, check_token=False):
-        self.token = "CSRF_LAB_DEMO_TOKEN_9f3a2c7e1b8d4f6a"
+        self.token = "csrf_lab_demo_token_9f3a2c7e1b8d4f6a"
         self.check_token = check_token
         self.transfers = 0
 
