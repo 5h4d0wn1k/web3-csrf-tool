@@ -15,6 +15,7 @@ import sys
 import time
 import threading
 import urllib.parse
+from html import escape as _html_escape
 from dataclasses import dataclass, field
 from typing import Optional
 from html.parser import HTMLParser
@@ -429,7 +430,9 @@ class CSRFTool:
         for name, field_info in form.fields.items():
             ftype = field_info["type"]
             fvalue = field_info["value"]
-            fields_html += f'    <input type="{ftype}" name="{name}" value="{fvalue}">\n'
+            fields_html += (f'    <input type="{_html_escape(ftype)}" '
+                            f'name="{_html_escape(name)}" '
+                            f'value="{_html_escape(fvalue)}">\n')
 
         submit_js = ""
         if auto_submit:
@@ -442,9 +445,9 @@ class CSRFTool:
 </head>
 <body>
     <h1>CSRF Attack PoC</h1>
-    <p>Target: {action_url}</p>
-    <p>Method: {form.method}</p>
-    <form action="{action_url}" method="{form.method}">
+    <p>Target: {_html_escape(action_url)}</p>
+    <p>Method: {_html_escape(form.method)}</p>
+    <form action="{_html_escape(action_url, quote=True)}" method="{_html_escape(form.method)}">
 {fields_html}    </form>
 {submit_js}
 </body>
@@ -467,10 +470,12 @@ class CSRFTool:
 
             fields = ""
             for name, value in data.items():
-                fields += f'        <input type="hidden" name="{name}" value="{value}">\n'
+                fields += (f'        <input type="hidden" '
+                           f'name="{_html_escape(name)}" '
+                           f'value="{_html_escape(value)}">\n')
 
             html += f"""
-    <form id="step{i}" action="{url}" method="{method}">
+    <form id="step{i}" action="{_html_escape(url, quote=True)}" method="{_html_escape(method)}">
 {fields}    </form>
 """
         for i in range(1, len(steps) + 1):
