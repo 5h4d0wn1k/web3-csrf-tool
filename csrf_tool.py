@@ -473,6 +473,7 @@ class CSRFTool:
     <form id="step{i}" action="{url}" method="{method}">
 {fields}    </form>
 """
+        html += "    <script>\n"
         for i in range(1, len(steps) + 1):
             html += f'        document.getElementById(\'step{i}\').submit();\n'
         html += """    </script>

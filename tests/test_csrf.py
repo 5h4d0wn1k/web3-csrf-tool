@@ -125,6 +125,22 @@ class TestCSRFPayloadGeneration(unittest.TestCase):
         self.assertIn("csrf_token", poc)
 
 
+class TestMultiStepScriptOpener(unittest.TestCase):
+    """The multi-step PoC's auto-submit JS needs a script opener (#12)."""
+
+    def test_multi_step_payload_wraps_submit_js_in_script(self):
+        tool = CSRFTool(ScanConfig(url="http://127.0.0.1:1/form", timeout=5))
+        poc = tool.generate_multi_step_payload([
+            {"url": "http://x/t", "method": "POST", "data": {"a": "1"}},
+            {"url": "http://x/u", "method": "POST", "data": {"b": "2"}},
+        ])
+        self.assertIn("<script>", poc)
+        self.assertIn("</script>", poc)
+        # the submit lines sit inside the script element
+        self.assertIn("<script>\n        document.getElementById('step1').submit();", poc)
+
+
+
 class TestCSRFDemo(unittest.TestCase):
     def test_demo_vulnerable_exits_zero(self):
         result = subprocess.run(
