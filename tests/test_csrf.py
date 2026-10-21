@@ -125,6 +125,43 @@ class TestCSRFPayloadGeneration(unittest.TestCase):
         self.assertIn("csrf_token", poc)
 
 
+class TestPoCEscaping(unittest.TestCase):
+    """Target-controlled field values must not break out of the PoC HTML (#17)."""
+
+    def _tool_with_hostile_form(self):
+        from csrf_tool import CSRFTool, ScanConfig, FormInfo
+        tool = CSRFTool(ScanConfig(url="http://127.0.0.1:1/form", timeout=5))
+        tool.forms = [FormInfo(
+            action="/transfer",
+            method="POST",
+            fields={
+                "q": {"type": "text", "value": '"onmouseover=alert(1) x="'},
+                "note": {"type": "text", "value": "</form><script>alert(2)</script>"},
+            },
+            csrf_tokens=[],
+        )]
+        return tool
+
+    def test_generated_poc_escapes_field_values(self):
+        poc = self._tool_with_hostile_form().generate_csrf_payload(0)
+        self.assertIn('value="&quot;onmouseover=alert(1) x=&quot;"', poc)
+        self.assertIn('value="&lt;/form&gt;&lt;script&gt;alert(2)&lt;/script&gt;"', poc)
+        # the injected handler and script must not appear as live markup
+        self.assertNotIn('onmouseover=alert(1) x="">', poc)
+        self.assertNotIn("</form><script>", poc)
+        # ordinary alphanumeric values still render identically
+        self.assertIn('action="http://127.0.0.1:1/transfer"', poc)
+
+    def test_multi_step_poc_escapes_field_values(self):
+        tool = self._tool_with_hostile_form()
+        poc = tool.generate_multi_step_payload([
+            {"url": "http://127.0.0.1:1/step", "method": "post",
+             "data": {"note": '</form><script>alert(2)</script>'}},
+        ])
+        self.assertIn('value="&lt;/form&gt;&lt;script&gt;alert(2)&lt;/script&gt;"', poc)
+        self.assertNotIn("</form><script>", poc)
+
+
 class TestCSRFDemo(unittest.TestCase):
     def test_demo_vulnerable_exits_zero(self):
         result = subprocess.run(
